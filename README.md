@@ -1,304 +1,243 @@
-# Discord Accountability Coach Bot
+# Discord to AnythingLLM Bridge
 
-A memory-powered, LLM-driven Discord bot that provides personalized accountability coaching with financial incentives, workout tracking, and behavioral pattern analysis.
+A simple, clean Discord bot that routes channel messages to different AnythingLLM workspaces. Each Discord channel maps to a specific workspace, allowing you to have specialized AI assistants per channel.
 
-## 🎯 Key Features
+## 🎯 Overview
 
-### **🧠 Memory-Powered Intelligence**
-- **Pattern Recognition**: Tracks excuses, commitments, and behavioral trends
-- **Morning Chat Integration**: Uses your existing MongoDB morning session logs
-- **Behavioral Analysis**: "You've made 3 'too tired' excuses this week"
-- **Context-Aware Responses**: References your mood, goals, and past commitments
+This bot acts as a passthrough between Discord and AnythingLLM:
+- Messages in Discord channels → Routed to AnythingLLM workspaces
+- Workspace responses → Posted back to Discord
+- Zero overhead, pure passthrough architecture
+- No databases, no memory services, no complex scheduling
 
-### **💬 Natural Conversation**
-- **No Slash Commands**: Just talk naturally in any channel
-- **Channel-Aware Personality**: Different coaching styles per Discord channel
-- **Condescending Rewards**: "Here's your $10, don't spend it all in one place"
-- **Firm Accountability**: Uses your own words against you
+## 📋 Channel → Workspace Mapping
 
-### **📊 Reconciliation Integration**
-- **Daily Automation**: Automatic reconciliation at 11 PM Central
-- **API Integration**: Calls your existing decider app
-- **Personalized Lectures**: LLM processes data into coaching feedback
-- **Performance Analysis**: "You earned $15 while your debt grew to $85"
-
-### **🔄 Modular Architecture**
-- **LLM Provider Switching**: Easy OpenAI ↔ Ollama switching
-- **Mac Mini Ready**: Runs locally with Ollama
-- **Memory Service**: MongoDB integration with pattern analysis
-- **Channel Management**: Smart channel detection and behaviors
+```javascript
+#fitness         → fitness-coach workspace
+#finance         → Finance workspace
+#code            → Code workspace
+#home-assistant  → home-ass workspace
+#general         → General Q&A workspace
+```
 
 ## 🚀 Quick Start
 
-### **1. Prerequisites**
+### Prerequisites
+- Node.js 16+
+- Discord Bot Token
+- AnythingLLM instance running (or will be started via Docker Compose)
+
+### 1. Setup Environment
+```bash
+cp .env.example .env
+# Edit .env with your Discord token
+```
+
+### 2. Configure AnythingLLM Workspaces
+Create workspaces in AnythingLLM matching your Discord channels:
+- `fitness-coach` (or create one and update the mapping)
+- `Finance`
+- `Code`
+- `home-ass`
+- `General Q&A`
+
+### 3. Run Locally
+```bash
+npm install
+npm run dev
+```
+
+### 4. Run with Docker Compose (Recommended)
+```bash
+docker-compose up -d
+```
+
+This starts both:
+- Discord bot (connects to AnythingLLM)
+- AnythingLLM instance (if not already running)
+
+## ⚙️ Configuration
+
+### Environment Variables
+
 ```bash
 # Required
-- Node.js 16+
-- MongoDB (local or Atlas)
-- Discord Bot Token
-- Your decider app running on port 3000
-
-# LLM Provider (choose one)
-- OpenAI API key OR
-- Ollama running locally
-```
-
-### **2. Installation**
-```bash
-# Clone and install
-git clone <your-repo>
-cd dicordcoach-bot
-npm install
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-### **3. Environment Configuration**
-```bash
-# Required Variables
 DISCORD_TOKEN=your_discord_bot_token
-MONGO_URI=mongodb://localhost:27017
 
-# LLM Configuration (choose OpenAI or Ollama)
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your_openai_key
-LLM_MODEL=gpt-4
+# AnythingLLM Connection
+ANYTHINGLLM_URL=http://localhost:3009        # Local
+# ANYTHINGLLM_URL=http://anythingllm:3009   # Docker
+ANYTHINGLLM_API_KEY=                         # Optional
 
-# OR for local Ollama
-# LLM_PROVIDER=ollama
-# OLLAMA_URL=http://localhost:11434
-# LLM_MODEL=llama2
-
-# Reconciliation API
-RECONCILIATION_API_URL=http://localhost:3000
+# Optional
+LOG_LEVEL=INFO
+NODE_ENV=production
 ```
 
-### **4. Discord Server Setup**
-Create channels with these keywords (bot auto-detects):
-- `#general` or `#chat` - General coaching conversations
-- `#begging` or `#requests` - Permission requests and negotiations
-- `#proof` or `#evidence` - Workout proof submissions
-- `#reviews` or `#summary` - Performance reviews and reconciliation
-- `#punishments` or `#violations` - Official announcements (bot-only)
+### Workspace Mapping
 
-### **5. Start the Bot**
-```bash
-# Development with auto-restart
-npm run dev
+Edit [src/services/AnythingLLMService.js:13-19](src/services/AnythingLLMService.js#L13-L19) to customize:
 
-# Production
-npm start
+```javascript
+this.workspaceMap = {
+  'fitness': 'fitness-coach',
+  'finance': 'Finance',
+  'code': 'Code',
+  'home-assistant': 'home-ass',
+  'general': 'General Q&A'
+};
 ```
 
 ## 🏗️ Architecture
 
-### **File Structure**
+```
+Discord Message
+    ↓
+Channel Detection (#fitness, #code, etc.)
+    ↓
+Workspace Mapping (fitness → fitness-coach)
+    ↓
+AnythingLLM API Call (POST /api/v1/workspace/{slug}/chat)
+    ↓
+Response Processing
+    ↓
+Discord Reply
+```
+
+### File Structure
 ```
 src/
-├── bot.js                           # Main Discord client
+├── bot.js                          # Main Discord client
 ├── handlers/
-│   ├── messageHandler.js            # Core message processing
-│   ├── channelHandler.js            # Channel-specific behaviors  
-│   └── reconciliationHandler.js     # Reconciliation integration
+│   └── messageHandler.js           # Message routing
 ├── services/
-│   ├── llm/
-│   │   ├── LLMService.js            # Main LLM interface
-│   │   ├── OpenAIProvider.js        # OpenAI implementation
-│   │   ├── OllamaProvider.js        # Ollama implementation
-│   │   └── prompts.js               # Channel-specific prompts
-│   ├── MemoryService.js             # MongoDB & pattern analysis
-│   ├── ReconciliationService.js     # API integration
-│   └── SchedulerService.js          # Automated reconciliation
+│   └── AnythingLLMService.js       # AnythingLLM API client
 └── utils/
-    ├── logger.js                    # Structured logging
-    └── config.js                    # Environment validation
+    └── logger.js                   # Logging
 ```
 
-### **Data Flow**
-```
-User Message → Channel Detection → Memory Context → LLM Response → Action Follow-up
-                     ↓
-              Pattern Analysis ← MongoDB Logs ← Morning Chat History
-```
+## 🔧 AnythingLLM Integration
 
-## 💾 Memory Integration
+### API Endpoints Used
+- `POST /api/v1/workspace/{slug}/chat` - Send message to workspace
+- `GET /api/health` - Health check
+- `GET /api/v1/workspaces` - List workspaces (optional)
 
-### **MongoDB Collections**
-- **`local_coaches.logs`**: Your existing morning chat sessions
-- **`local_coaches.discord_interactions`**: New Discord interaction tracking
+### Authentication
+API key is optional. If AnythingLLM requires authentication:
+1. Generate API key in AnythingLLM settings
+2. Add to `.env`: `ANYTHINGLLM_API_KEY=your_key`
 
-### **Pattern Analysis**
-```javascript
-// What the bot remembers about you:
-{
-  excusePatterns: ["too tired", "couldn't", "forgot"],
-  commitmentTracking: ["will hit 4 workouts", "plan to apply to 25 jobs"],
-  moodCorrelations: ["sluggish mornings → skipped workouts"],
-  channelBehavior: ["begs 2x more than submits proof"],
-  weeklyPatterns: ["skips Monday check-ins", "chatty on Fridays"]
-}
-```
+### Chat Modes
+Currently uses `chat` mode (general knowledge + embeddings). Can be changed to `query` mode for strict fact-based responses.
 
-## 🤖 Channel Behaviors
+## 🐳 Docker Deployment
 
-### **#general - Coaching Conversations**
-- Natural conversation with full memory context
-- References your patterns and commitments
-- Calls out excuses using your history
+### Docker Compose Setup
+```yaml
+services:
+  discord-bot:
+    # Routes Discord messages to AnythingLLM
 
-### **#begging - Permission Requests**
-- Skeptical of spending requests
-- References recent performance
-- Conditional approvals based on behavior
-
-### **#proof - Workout Evidence**
-- Condescending acknowledgment of basic effort
-- Verification reactions (✅ ❌ 🤔)
-- Earnings approval for valid proof
-
-### **#reviews - Performance Analysis**
-- Daily reconciliation summaries at 11 PM
-- Data-driven performance lectures
-- Historical trend analysis
-
-### **#punishments - Official Announcements**
-- Bot-only channel for debt/punishment notices
-- Authoritative, no-negotiation tone
-- Clean, official announcements
-
-## 🔄 Reconciliation Integration
-
-### **Automatic Daily Flow**
-```
-11:00 PM Central → API Call → Data Processing → LLM Lecture → Discord Post
+  anythingllm:
+    # Runs AnythingLLM instance
+    # Accessible at localhost:3009
 ```
 
-### **API Integration**
-```javascript
-// Calls your existing endpoint
-POST /reconcile → {
-  success: true,
-  results: {
-    total_bonus_amount: 15,
-    debt_updates: [...],
-    new_punishments: [...],
-    summary: "..."
-  }
-}
-
-// Becomes personalized lecture
-"You earned a pathetic $15 while your debt grew to $85. 
-Based on your morning energy being 'low' three times this week, 
-I'm not surprised."
-```
-
-## 🔧 Configuration Options
-
-### **LLM Provider Switching**
+### Commands
 ```bash
-# Switch to Ollama
-LLM_PROVIDER=ollama
-OLLAMA_URL=http://localhost:11434
-LLM_MODEL=llama2
+# Start both services
+docker-compose up -d
 
-# Switch to OpenAI
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your_key
-LLM_MODEL=gpt-4
+# View logs
+docker-compose logs -f discord-bot
+
+# Rebuild after code changes
+docker-compose up -d --build
+
+# Stop services
+docker-compose down
 ```
 
-### **Memory Lookback**
-```javascript
-// Default: 14 days of context
-const memoryContext = await memoryService.getRelevantContext({
-  lookbackDays: 14  // Adjustable
-});
+## 📝 Usage Examples
+
+### Basic Conversation
+```
+User in #fitness: "What's a good workout routine?"
+Bot: [Response from fitness-coach workspace]
 ```
 
-### **Logging Levels**
-```bash
-LOG_LEVEL=DEBUG  # Verbose logging
-LOG_LEVEL=INFO   # Standard logging
-LOG_LEVEL=WARN   # Warnings only
-LOG_LEVEL=ERROR  # Errors only
+### Channel Auto-Detection
 ```
+User in #code: "How do I reverse a string in Python?"
+Bot: [Response from Code workspace]
+
+User in #finance: "Should I invest in index funds?"
+Bot: [Response from Finance workspace]
+```
+
+## 🔍 Troubleshooting
+
+### Bot Not Responding
+1. Check Discord token is valid
+2. Verify bot has Message Content intent enabled in Discord Developer Portal
+3. Check logs: `docker-compose logs discord-bot`
+
+### AnythingLLM Connection Errors
+1. Verify AnythingLLM is running: `curl http://localhost:3009/api/health`
+2. Check workspace names match exactly (case-sensitive)
+3. Verify API key if required
+
+### Workspace Not Found
+1. Log into AnythingLLM (http://localhost:3009)
+2. Create missing workspaces
+3. Or update mapping in `AnythingLLMService.js`
 
 ## 🛠️ Development
 
-### **Testing Connections**
+### Local Development
 ```bash
-# Test reconciliation API
-curl http://localhost:3000/health
-
-# Test MongoDB connection
-# Check logs for "Memory service connected to MongoDB"
-
-# Test LLM provider
-# Check logs for "LLM [provider] connection successful"
+npm run dev  # Auto-restart on file changes
 ```
 
-### **Manual Reconciliation**
-Send "reconcile" in #general channel to trigger manual reconciliation.
+### Adding New Channels
+1. Create workspace in AnythingLLM
+2. Add mapping to `AnythingLLMService.js`
+3. Create Discord channel
+4. Restart bot
 
-### **Memory Inspection**
-```javascript
-// Check what the bot remembers
-await memoryService.getRelevantContext({
-  userId: 'your-discord-id',
-  lookbackDays: 7
-});
+### Debugging
+Set `LOG_LEVEL=DEBUG` in `.env` for verbose logging.
+
+## 📦 Dependencies
+
+- `discord.js` - Discord API wrapper
+- `axios` - HTTP client for AnythingLLM API
+- `dotenv` - Environment configuration
+
+## 🔐 Security Notes
+
+- Keep `.env` out of version control (already in `.gitignore`)
+- Use API keys if running in untrusted networks
+- Run as non-root user in Docker (configured)
+- AnythingLLM storage persisted in Docker volume
+
+## 🚦 Health Checks
+
+The bot logs startup diagnostics:
+```
+🤖 Bot online
+📡 Connected to X server(s)
+📋 Channel mappings:
+  #fitness → fitness-coach
+  #code → Code
+  ...
 ```
 
-## 🔮 Future Enhancements
+## 📄 License
 
-### **Function Calling (Ready)**
-The architecture supports LLM function calling:
-```javascript
-// LLM can decide to call these functions
-await reconciliationService.assignPunishment(type, duration, reason);
-await reconciliationService.assignDebt(amount, reason);
-await memoryService.flagBehaviorPattern(pattern, severity);
-```
+MIT
 
-### **Additional Integrations**
-- Apple Watch workout data
-- Notion database queries  
-- Calendar integration
-- Spending pattern analysis
+## 🤝 Contributing
 
-## 📝 Example Interactions
-
-### **Memory-Powered Accountability**
-```
-User: "I couldn't make it to the gym today"
-Bot: "That's the third 'couldn't' excuse this week. Last Monday you 
-     said you'd nail this week after disappointing me. Your morning 
-     session showed you were 'focused' and 'high energy' - so what's 
-     the real reason?"
-```
-
-### **Reconciliation Lecture**
-```
-🌙 DAILY RECKONING - 2025-07-05
-
-You earned a pathetic $15 in bonuses while your debt grew to $85. 
-That scooter isn't going to ride itself. Based on your morning 
-energy being 'low' three times this week, I'm not surprised by 
-this disappointing performance.
-
-Your Uber earnings of $25 went straight to debt - you keep nothing. 
-Two new cardio punishments assigned for missed workouts. Stop making 
-excuses and start making progress.
-```
-
-### **Begging Response**
-```
-User: "Can I spend $80 on dinner tonight?"
-Bot: "You missed 2 workouts this week and want $80 for dinner? 
-     Your recent begging frequency is through the roof. Earn it 
-     first with some actual effort."
-```
-
-This bot transforms from a simple chatbot into a truly intelligent accountability partner that knows your patterns, uses your history against you, and delivers personalized coaching based on real data and behavioral analysis.
+This is a personal project, but feel free to fork and modify for your needs.

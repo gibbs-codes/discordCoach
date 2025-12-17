@@ -1,14 +1,12 @@
 services:
-  app:
+  discord-bot:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: accountability-discord-bot-production
-    ports:
-      - "3004:3004"
+    container_name: discord-anythingllm-bridge
     environment:
       - NODE_ENV=production
-      - WEBHOOK_PORT=3004
+      - ANYTHINGLLM_URL=http://anythingllm:3009
     env_file:
       - .env
     restart: unless-stopped
@@ -16,16 +14,32 @@ services:
       - gibbs-apps
     volumes:
       - ./logs:/usr/src/app/logs:rw
-      - ./data:/usr/src/app/data:rw
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     labels:
-      - "app=accountability-discord-bot"
+      - "app=discord-anythingllm-bridge"
       - "environment=production"
+    depends_on:
+      - anythingllm
+
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    container_name: anythingllm
+    ports:
+      - "3009:3001"  # Map host 3009 to container 3001
+    environment:
+      - STORAGE_DIR=/app/storage
+      - SERVER_PORT=3001
+    volumes:
+      - anythingllm-storage:/app/storage
+    restart: unless-stopped
+    networks:
+      - gibbs-apps
+    labels:
+      - "app=anythingllm"
+      - "environment=production"
+
+volumes:
+  anythingllm-storage:
+    driver: local
 
 networks:
   gibbs-apps:

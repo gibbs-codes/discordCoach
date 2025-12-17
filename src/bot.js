@@ -1,14 +1,13 @@
-// src/bot.js - Main Discord Bot Entry Point
+// src/bot.js - Discord to AnythingLLM Passthrough Bot
 import { Client, GatewayIntentBits } from 'discord.js';
 import { config } from 'dotenv';
 import { MessageHandler } from './handlers/messageHandler.js';
-import { SchedulerService } from './services/SchedulerService.js';
-import { WebhookServer } from './services/webhookServer.js';
 import { logger } from './utils/logger.js';
+import './utils/config.js'; // Validates environment on import
 
 config();
 
-class AccountabilityBot {
+class DiscordAnythingLLMBot {
   constructor() {
     this.client = new Client({
       intents: [
@@ -20,21 +19,25 @@ class AccountabilityBot {
     });
 
     this.messageHandler = new MessageHandler();
-    this.scheduler = new SchedulerService();
-    this.webhookServer = new WebhookServer(this.client);
-    
     this.setupEventListeners();
   }
 
   setupEventListeners() {
     this.client.once('ready', async () => {
-      logger.info(`🤖 ${this.client.user.tag} is online and ready to dominate!`);
-      
-      // Start services
-      this.scheduler.startReconciliationSchedule(this.client);
-      await this.webhookServer.start();
-      
-      logger.info('✅ All services started successfully');
+      logger.info(`🤖 ${this.client.user.tag} is online!`);
+      logger.info(`📡 Connected to ${this.client.guilds.cache.size} server(s)`);
+      logger.info(`🔗 Ready to bridge Discord to AnythingLLM workspaces`);
+
+      // Log channel mappings
+      for (const guild of this.client.guilds.cache.values()) {
+        logger.info(`\n📋 ${guild.name} channels:`);
+        guild.channels.cache
+          .filter(ch => ch.type === 0) // Text channels only
+          .forEach(channel => {
+            const workspace = this.messageHandler.llmService.getWorkspaceFromChannel(channel.name);
+            logger.info(`  #${channel.name} → ${workspace}`);
+          });
+      }
     });
 
     this.client.on('messageCreate', async (message) => {
@@ -54,7 +57,7 @@ class AccountabilityBot {
 
   async start() {
     try {
-      logger.info('🚀 Starting accountability coach bot...');
+      logger.info('🚀 Starting Discord to AnythingLLM bridge...');
       await this.client.login(process.env.DISCORD_TOKEN);
     } catch (error) {
       logger.error('Failed to start bot:', error);
@@ -64,14 +67,7 @@ class AccountabilityBot {
 
   async shutdown() {
     logger.info('🛑 Shutting down bot...');
-    
-    // Stop services
-    this.scheduler.stopScheduler();
-    await this.webhookServer.stop();
-    
-    // Logout from Discord
     await this.client.destroy();
-    
     logger.info('✅ Bot shutdown complete');
   }
 }
@@ -96,6 +92,6 @@ process.on('SIGTERM', async () => {
 });
 
 // Start the bot
-const bot = new AccountabilityBot();
-global.bot = bot; // For shutdown handling
+const bot = new DiscordAnythingLLMBot();
+global.bot = bot;
 bot.start();
