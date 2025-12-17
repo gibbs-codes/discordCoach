@@ -92,38 +92,28 @@ jobs:
           --name accountability-discord-bot-production \
           --restart unless-stopped \
           --network gibbs-apps \
-          -p 3004:3004 \
           -v $(pwd)/logs:/usr/src/app/logs:rw \
-          -v $(pwd)/data:/usr/src/app/data:rw \
           --env-file .env \
           -e NODE_ENV=production \
-          -e PORT=3004 \
           accountability-discord-bot:latest
         
     - name: Verify deployment
       run: |
         echo "Waiting for container to start..."
-        sleep 25
-        
+        sleep 10
+
         echo "Checking container status..."
         docker ps | grep accountability-discord-bot-production
-        
-        echo "Testing health endpoint..."
-        if curl -f http://localhost:3004/health; then
+
+        echo "Checking Discord connection..."
+        docker logs accountability-discord-bot-production
+
+        if docker logs accountability-discord-bot-production 2>&1 | grep -q "is online"; then
           echo "✅ Discord Bot deployment successful!"
         else
-          echo "❌ Health check failed"
-          echo "Container logs:"
-          docker logs accountability-discord-bot-production
+          echo "❌ Discord connection failed"
           exit 1
         fi
-        
-        echo "Testing status endpoint..."
-        curl -s http://localhost:3004/status | jq '.' || curl -s http://localhost:3004/status
-        
-        echo "Checking Discord connection..."
-        sleep 5
-        docker logs accountability-discord-bot-production | grep "ready to dominate" && echo "✅ Discord connected"
         
     - name: Clean up old images
       run: |
@@ -132,13 +122,12 @@ jobs:
     - name: Show final status
       run: |
         echo "=== Final Status ==="
-        docker ps | grep -E "(accountability-discord-bot-production|morning-chats-production|ctaaapi-production|projector-ui-production)"
+        docker ps | grep accountability-discord-bot-production
         echo ""
-        echo "Discord Bot is running:"
-        echo "  - Health: http://localhost:3004/health"
-        echo "  - Status: http://localhost:3004/status"
+        echo "Discord to AnythingLLM Bridge is running:"
         echo "  - Discord: Connected and monitoring channels"
-        echo "  - Memory: MongoDB pattern analysis enabled"
+        echo "  - AnythingLLM: Routing to workspaces"
+        echo "  - Channels: #fitness, #finance, #code, #home-assistant, #general"
         echo ""
         echo "Network: gibbs-apps"
         docker network inspect gibbs-apps --format='{{range .Containers}}{{.Name}}: {{.IPv4Address}}{{"\n"}}{{end}}'
