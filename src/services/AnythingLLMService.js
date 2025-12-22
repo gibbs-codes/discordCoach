@@ -11,10 +11,10 @@ export class AnythingLLMService {
     // Workspace mapping
     this.workspaceMap = {
       'fitness': 'fitness-coach',
-      'finance': 'Finance',
-      'code': 'Code',
+      'finance': 'finance',
+      'code': 'code',
       'home-assistant': 'home-ass',
-      'general': 'general-q-a'  // Changed from 'General Q&A' to URL-safe slug
+      'general': 'general-qanda'
     };
   }
 
