@@ -14,7 +14,7 @@ export class AnythingLLMService {
       'finance': 'Finance',
       'code': 'Code',
       'home-assistant': 'home-ass',
-      'general': 'General Q&A'
+      'general': 'general-q-a'  // Changed from 'General Q&A' to URL-safe slug
     };
   }
 
@@ -54,6 +54,11 @@ export class AnythingLLMService {
     } catch (error) {
       logger.error(`❌ AnythingLLM chat error for workspace ${workspaceSlug}:`, error.message);
 
+      // Log response data for debugging 400 errors
+      if (error.response?.data) {
+        logger.error('Response data:', JSON.stringify(error.response.data));
+      }
+
       if (error.code === 'ECONNREFUSED') {
         throw new Error('AnythingLLM is not running. Start the service first.');
       } else if (error.code === 'ETIMEDOUT') {
@@ -62,6 +67,9 @@ export class AnythingLLMService {
         throw new Error('Invalid API key. Check your ANYTHINGLLM_API_KEY environment variable.');
       } else if (error.response?.status === 404) {
         throw new Error(`Workspace "${workspaceSlug}" not found. Check your workspace configuration.`);
+      } else if (error.response?.status === 400) {
+        const detail = error.response?.data?.message || error.response?.data?.error || 'Invalid request';
+        throw new Error(`Bad request to AnythingLLM: ${detail}`);
       } else {
         throw new Error(`AnythingLLM error: ${error.message}`);
       }
